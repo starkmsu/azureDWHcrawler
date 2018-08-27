@@ -69,7 +69,7 @@ class Crawler(telepot.helper.ChatHandler):
               ", @AzureBlobFolder=?" \
               ", @ColumnList=?" \
               ", @FileFormat=NULL"
-        print(sql)
+
         params = (aName, aKey, container, tablename, azureblobfoder, columnlist)
         try:
             cursor.execute(sql, params)
@@ -131,9 +131,13 @@ class Crawler(telepot.helper.ChatHandler):
                         except Exception as err:
                             self.sender.sendMessage("UUPPPS...{0} ERROR: {1}".format(table["TableName"],err))
 
+            MSG.append("Container {0}  has {1} files".format(container.name, i))
+            MSGsend = MSG
+            if len(MSG)>5:
+                MSGsend = MSG[0:4]
+                MSGsend.append("Container {0}  has {1} files".format(container.name, i))
 
-            MSG.append("Container {0}  has {1} files".format(container.name,i))
-            self.sender.sendMessage(MSG)
+            self.sender.sendMessage(MSGsend)
 
         conn.close()
         self.sender.sendMessage("ALL DONE")
