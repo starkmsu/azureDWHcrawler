@@ -23,8 +23,10 @@ Guess a number:
 
 class Crawler(telepot.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
+
         super(Crawler, self).__init__(*args, **kwargs)
         self._answer = random.randint(0,99)
+
 
     def _get_dev_env(self):
         ##TODO ReadFrom File config
@@ -41,16 +43,20 @@ class Crawler(telepot.helper.ChatHandler):
 
     def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
-
-        if 'RunDEV' == msg['text']:
+        global isCrawlerRun
+        if 'RunDEV' == msg['text'] and isCrawlerRun == 0:
             self.sender.sendMessage('Im starting...')
             try:
                 args = self._get_dev_env()
+                isCrawlerRun=1
                 self._runBlobCrawlerv2()
+                isCrawlerRun=0
             except Exception as err:
+                isCrawlerRun=0
                 self.sender.sendMessage("UUPPPS... ERROR: {0}".format(err))
             return
-
+        elif isCrawlerRun>0:
+            self.sender.sendMessage(" it is already run may be some of your colleagues did it...")
         try:
            guess = int(msg['text'])
         except ValueError:
@@ -147,6 +153,7 @@ class Crawler(telepot.helper.ChatHandler):
         self.close()
 
 global args
+isCrawlerRun =0
 
 parser = argparse.ArgumentParser()
 

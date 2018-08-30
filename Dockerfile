@@ -1,7 +1,12 @@
-FROM python:3
+FROM python:3.6
 ADD AzureBlobCrawlerBot.py /
 
+
+RUN apt-get update
+RUN apt-get install -y unixodbc unixodbc-dev
+RUN apt-get install python-pyodbc -y
 RUN pip install telepot
+RUN pip install pyodbc
 RUN pip install argparse
 RUN pip install azure.storage.blob
 
