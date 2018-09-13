@@ -11,20 +11,12 @@ import argparse
 import json
 from azure.storage.blob import BlockBlobService
 
-"""
-$ python3.5 guess.py <token>
-Guess a number:
-1. Send the bot anything to start a game.
-2. The bot randomly picks an integer between 0-99.
-3. You make a guess.
-4. The bot tells you to go higher or lower.
-5. Repeat step 3 and 4, until guess is correct.
-"""
-
 class Crawler(telepot.helper.ChatHandler):
     def __init__(self, *args, **kwargs):
+
         super(Crawler, self).__init__(*args, **kwargs)
         self._answer = random.randint(0,99)
+
 
     def _get_dev_env(self):
         ##TODO ReadFrom File config
@@ -36,21 +28,46 @@ class Crawler(telepot.helper.ChatHandler):
         return
 
     def open(self, initial_msg, seed):
-        self.sender.sendMessage('type RunDEV if you whant to run Azure blob Crowler on Dev DWH ')
+        self.sender.sendMessage('type RunDEV if you want to run Azure blob Crowler on Dev DWH and '
+                                'and iterate all containers, '
+                                'or type RunDEV containerName  to refresh only one container'
+                                'or type ContainersList to get list of available containers')
         return True  # prevent on_message() from being called on the initial message
 
     def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
-
-        if 'RunDEV' == msg['text']:
-            self.sender.sendMessage('Im starting...')
+        global isCrawlerRun
+        if 'RunDEV' in msg['text'] and isCrawlerRun == 0:
+            #get container name
+            containerName = ''
+            if len(msg['text'].split(' '))>1:
+                containerName = msg['text'].split(' ')[1]
+            self.sender.sendMessage('Im starting...{0}'.format(containerName))
             try:
                 args = self._get_dev_env()
-                self._runBlobCrawlerv2()
+                isCrawlerRun=1
+                self._runBlobCrawlerv2(containerName)
+                isCrawlerRun=0
             except Exception as err:
+                isCrawlerRun=0
                 self.sender.sendMessage("UUPPPS... ERROR: {0}".format(err))
             return
+        elif 'ContainersList' in msg['text'] and isCrawlerRun == 0:
 
+            try:
+                args = self._get_dev_env()
+                isCrawlerRun=1
+                block_blob_service = BlockBlobService(account_name=args.accountName, account_key=args.accountKey)
+                containers = block_blob_service.list_containers()
+                for container in containers:
+                    self.sender.sendMessage("{0}".format(container.name))
+                isCrawlerRun=0
+            except Exception as err:
+                isCrawlerRun=0
+                self.sender.sendMessage("UUPPPS... ERROR: {0}".format(err))
+
+        elif isCrawlerRun>0:
+            self.sender.sendMessage(" it is already run may be some of your colleagues did it...")
         try:
            guess = int(msg['text'])
         except ValueError:
@@ -69,7 +86,7 @@ class Crawler(telepot.helper.ChatHandler):
               ", @AzureBlobFolder=?" \
               ", @ColumnList=?" \
               ", @FileFormat=NULL"
-        print(sql)
+
         params = (aName, aKey, container, tablename, azureblobfoder, columnlist)
         try:
             cursor.execute(sql, params)
@@ -92,10 +109,13 @@ class Crawler(telepot.helper.ChatHandler):
         print('-------- ' + res[:-2])
         return res[:-2]
 
-    def _runBlobCrawlerv2(self):
+    def _runBlobCrawlerv2(self,containerName=''):
 
         block_blob_service = BlockBlobService(account_name=args.accountName, account_key=args.accountKey)
-        containers = block_blob_service.list_containers()
+        if len(containerName) > 0:
+            containers = block_blob_service.list_containers(prefix=containerName)
+        else:
+            containers = block_blob_service.list_containers()
         conn = pyodbc.connect(driver="{ODBC Driver 13 for SQL Server}", server=args.dbserver, database=args.dbname,
                               uid=args.dbuid,
                               pwd=args.dbpwd, autocommit=True)
@@ -131,9 +151,13 @@ class Crawler(telepot.helper.ChatHandler):
                         except Exception as err:
                             self.sender.sendMessage("UUPPPS...{0} ERROR: {1}".format(table["TableName"],err))
 
+            MSG.append("Container {0}  has {1} files".format(container.name, i))
+            MSGsend = MSG
+            if len(MSG)>5:
+                MSGsend = MSG[0:4]
+                MSGsend.append("Container {0}  has {1} files".format(container.name, i))
 
-            MSG.append("Container {0}  has {1} files".format(container.name,i))
-            self.sender.sendMessage(MSG)
+            self.sender.sendMessage(MSGsend)
 
         conn.close()
         self.sender.sendMessage("ALL DONE")
@@ -143,6 +167,7 @@ class Crawler(telepot.helper.ChatHandler):
         self.close()
 
 global args
+isCrawlerRun =0
 
 parser = argparse.ArgumentParser()
 
